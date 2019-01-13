@@ -1,0 +1,19 @@
+{
+  "name": "monzo-api",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "nuxt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vohzd/monzo-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vohzd/monzo-api/issues"
+  },
+  "homepage": "https://github.com/vohzd/monzo-api#readme",
+  "dependencies": {
+    "@nuxtjs/axios": "^5.3.6",
+    "nuxt": "^2.3.4"
+  }
+}
