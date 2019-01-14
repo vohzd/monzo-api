@@ -11,6 +11,8 @@
         <label for="mClientSecret" class="c100 mt" >Monzo Secret</label>
         <input v-model="mClientSecret" id="mClientSecret" class="mt pad padfill" />
         <button class="mt pad" @click="updateCredentials">Update</button>
+        <button @click="logout" class="mt pad" v-if="isAuthenticated">Log out</button>
+
       </div>
       <div class="flex-item">
         <div class="status-bar">
@@ -20,9 +22,17 @@
           </span>
           <span v-if="isAuthenticated">
             Authenticated. Access token: {{ mClientAccessToken }}
-            <button @click="logout">Log out</button>
           </span>
+        </div>
+        <div class="mt" v-if="isAuthenticated">
+          <button @click="retrieveAccounts" class="pad">Retrieve Accounts</button>
+          <button @click="retrieveTransactions" class="pad">Retrieve Transactions</button>
+          <button @click="retreiveBalance" class="pad">Retrieve Balance</button>
 
+
+          <pre class="monzo-output">
+            {{ monzoResponse  }}
+          </pre>
         </div>
       </div>
     </section>
@@ -35,17 +45,20 @@
 export default {
   data(){
     return {
+      accountId: null,
       isAuthenticated: false,
       mClientAccessToken: null,
       mClientId: null,
       mClientSecret: null,
-      redirectUri: "http://localhost:3000"
+      redirectUri: "http://localhost:3000",
+      monzoResponse: null
     }
   },
   methods: {
     async handleAccessToken(){
+      console.log(window.location.search.indexOf("?code") > -1 );
+      console.log(this.mClientAccessToken);
       if (window.location.search.indexOf("?code") > -1 && !this.mClientAccessToken){
-        console.log("handle token for me please...");
         let authCode = window.location.search.split("?code=")[1].split("&state")[0];
         let formData = new FormData();
         formData.append("grant_type", "authorization_code");
@@ -61,24 +74,53 @@ export default {
         }
       }
       else {
-        this.isAuthenticated = true;
+        console.log("not authed")
       }
     },
     async logout(){
       let formData = new FormData();
       formData.append("Authorization", `Bearer ${this.accessToken}`);
       let res = await this.$axios.post("https://api.monzo.com/oauth2/logout", formData);
-      this.accessToken = null;
+      this.mClientAccessToken = null;
+      this.monzoResponse = null;
       this.isAuthenticated = false;
+      this.updateCredentials();
+
+    },
+    async retrieveAccounts(){
+      this.$axios.defaults.headers.common['Authorization'] = `Bearer ${this.mClientAccessToken}`;
+      let res = await this.$axios.get("https://api.monzo.com/accounts");
+      this.monzoResponse = res.data.accounts;
+      this.accountId = res.data.accounts[0].id;
+    },
+    async retreiveBalance(){
+      this.$axios.defaults.headers.common['Authorization'] = `Bearer ${this.mClientAccessToken}`;
+      let res = await this.$axios.get("https://api.monzo.com/balance", { params: {
+        "account_id": this.accountId
+      }});
+      this.monzoResponse = res.data;
     },
     retreiveCredentials(){
       let credentials = localStorage.getItem("mMonzoCredentials");
+      console.log(credentials)
       if (credentials.length > 0){
         let parsed = JSON.parse(credentials);
+        console.log(parsed);
         this.mClientId = parsed.mClientId;
         this.mClientSecret = parsed.mClientSecret;
-        this.mClientAccessToken = parsed.mClientAccessToken
+        this.mClientAccessToken = parsed.mClientAccessToken;
+        if (parsed.mClientAccessToken){
+          this.isAuthenticated = true;
+        }
       }
+    },
+    async retrieveTransactions(){
+      this.$axios.defaults.headers.common['Authorization'] = `Bearer ${this.mClientAccessToken}`;
+      let res = await this.$axios.get("https://api.monzo.com/transactions", { params: {
+        "account_id": this.accountId
+      }});
+      this.monzoResponse = res.data.transactions;
+      console.log(res);
     },
     updateCredentials(){
       if (this.mClientId && this.mClientSecret){
